@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSAE Cooling System | Taiju Noma</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+<nav>
+<a href="../index.html" class="logo">Taiju Noma</a>
+<div class="nav-links">
+<a href="../index.html#home">Home</a>
+<a href="../index.html#resume">Resume</a>
+<a href="../index.html#projects">Projects</a>
+<a href="../index.html#about">About</a>
+<a href="../index.html#contact">Contact</a>
+</div>
+</nav>
+</header>
+
+<main class="project-page">
+
+<a href="../index.html#projects" class="back-link">← Back to Projects</a>
+
+<div class="project-hero">
+    <p class="project-label">Mechanical Design / Thermal Modeling</p>
+    <h1>FSAE Cooling System</h1>
+    <p class="project-summary">Built a MATLAB-based thermal model of the Formula SAE car's radiator and validated the model to within 13% of physical test data.</p>
+    
+    <figure class="project-figure project-hero-figure">
+        <img src="../assets/images/cooling-loop-cad-assembly.png" alt="CAD assembly of the FSAE cooling loop showing the Koolance HX-240XC radiator, dual Sanyo Denki fans, GRI pump, catch can, thermocouples, and flow meter">
+        <figcaption>
+            <strong>Figure 1 — FSAE Cooling Loop CAD Assembly</strong>
+            <span>CAD layout of the selected cooling-loop hardware, showing the radiator, fans, pump, catch can, thermocouples, and flow meter used in the 2026 design.</span>
+        </figcaption>
+    </figure>
+    
+</div>
+
+<div class="project-meta">
+    <div class="project-meta-item"><span class="project-meta-label">ROLE</span><span class="project-meta-value">Cooling Systems Subteam – Radiator Thermal Modeling, Highlander Racing FSAE</span></div><div class="project-meta-item"><span class="project-meta-label">TOOLS</span><span class="project-meta-value">MATLAB (Curve Fitting Toolbox), SolidWorks, Excel</span></div><div class="project-meta-item"><span class="project-meta-label">YEAR</span><span class="project-meta-value">2025–2026</span></div>
+</div>
+
+
+        <section class="project-section">
+            <h2>Project Objective</h2>
+            <p>Going into the 2026 season, the cooling systems subteam had two goals. First, make a validated thermal model in order to select an appropriate radiator. Previous years relied on napkin calculations, which led to conservative design assumptions and a badly oversized HX-360XC radiator. Second, simplify the cooling loop. Earlier years ran a parallel radiator configuration with complex plumbing that was difficult to fill, bleed, and service, so the 2026 design moved to a simple dual-pass loop with an exposed, easily serviceable radiator. Any new radiator selection still had to reject enough heat to keep motor and inverter coolant temperatures within their limits across a full lap, while cutting the weight and packaging volume of the previous design.</p>
+        </section>
+        
+        <figure class="project-figure">
+            <img src="../assets/images/system-thermal-model-diagram.png" alt="Block diagram of the full MATLAB cooling system thermal model, color-coded by heat generation, heat dissipation, pressure drop, temperature values, and parametric sweeps">
+            <figcaption>
+                <strong>Figure 2 — System-Level Thermal Model</strong>
+                <span>Overview of the MATLAB cooling-system model and its major subsystems. My work focused on the Heat Dissipation block, 
+                    which converts airflow and coolant-to-air temperature difference into radiator heat rejection.</span>
+            </figcaption>
+        </figure>
+
+        <section class="project-section">
+            <h2>My Contribution</h2>
+            <p>My piece of the cooling system was the radiator heat-dissipation model. I 
+                converted the Koolance HX-240XC's manufacturer performance curves into
+                 a continuous MATLAB model that predicts heat rejection as a function of 
+                 airflow (CFM) and the temperature difference between the coolant and 
+                 ambient air (Celsius). This model became the "Heat Dissipation" block inside the 
+                 team's larger cooling-system simulation, which also tracked motor and inverter 
+                 heat generation, pump/system flow rate, and pressure drop to produce a 
+                 steady-state and lap-by-lap coolant temperature prediction.</p>
+        </section>
+        
+        <figure class="project-figure">
+            <img src="../assets/images/radiator-heat-dissipation-surface.png" alt="3D MATLAB surface plot of radiator heat dissipation in Watts versus CFM and temperature difference in Celsius">
+            <figcaption>
+                <strong>Figure 3 — Radiator Heat-Rejection Surface</strong>
+                <span>Continuous MATLAB surface relating radiator heat rejection to airflow and coolant-to-ambient temperature difference, 
+                    allowing performance to be evaluated across changing operating conditions.</span>
+            </figcaption>
+        </figure>
+
+        <section class="project-section">
+            <h2>Engineering Approach</h2>
+            <p>The radiator's datasheet only published heat rejection curves at two temperature 
+                differences (ΔT = 15°C and 25°C), each measured over a narrow coolant flowrate 
+                range of roughly 1.7–6.8 L/min. To convert this data into a useful model, I took the following steps:</p>
+            <p>1) Digitized the manufacturer curves and fit a 
+                power-law curve (Q = a·x^b + c) to each ΔT slice using MATLAB's Curve Fitting Toolbox, 
+                extending the predictions out to flow rates beyond what was actually tested.</p>
+            <p>2) Added a ΔT = 0°C boundary (zero heat rejection) and linearly extrapolated a ΔT = 80°C case 
+                from the ΔT = 25°C slope, since heat rejection scales roughly linearly with temperature 
+                difference for a fixed airflow.</p>
+            <p>3) Used linear interpolation across all four temperature slices to stitch the discrete 
+                curves into one continuous 3-D surface relating CFM, ΔT, and heat rejection (Watts) over 
+                a 0–1000 CFM range.</p>
+            <p>4) Determined the airflow the car would actually see through the radiator core:
+                 using the vehicle's maximum recorded speed (97 km/h) and the radiator's face area, 
+                 I calculated a theoretical maximum of 822 CFM, which set the upper bound the surface 
+                 needed to remain valid across.</p>
+            <p>5) Fed that surface into the shared thermal model, where flow rate and ambient/coolant ΔT 
+                (computed elsewhere in the model from motor and inverter heat loads) were used to 
+                look up the correct instantaneous heat-rejection value, rather than assuming a single 
+                constant radiator performance number for the whole lap.</p>
+        </section>
+        
+      <figure class="project-figure">
+            <img src="../assets/images/Heat-Gen_Rej.png" alt="Plot of heat rejected during physical radiator bench testing, showing an initial spike and settling to a steady-state average of 1610 Watts">
+            <figcaption>
+                <strong>Figure 4 — Heat Generation and Heat Rejection</strong>
+                <span>Shows motor heat, inverter heat, total heat input, and radiator heat rejection together.
+
+                    The gap between total heat in and radiator rejection is what causes coolant temperatures to creep up. Earlier in the lap, the coolant temperature is the same as ambient temperature, so there isn't a temperature difference between the coolant and the ambient air to drive heat transfer. As the coolant warms up during the lap, the difference grows, and the radiator starts pulling more and more heat out, which is why the green lines rise over time. As long as the radiator catches up before the coolant reaches the 50 °C limit, everything is working properly. 
+
+                </span>
+            </figcaption>
+        </figure>
+        
+        <section class="project-section">
+            <h2>Results</h2>
+            <p>The finished model produces a continuous heat rejection surface valid from 0–1000 CFM and 0–80°C ΔT, peaking around 21,000 W of rejection at the highest airflow and temperature difference. This let the team size the radiator against actual predicted operating conditions instead of a worst-case guess, which is what allowed a switch from the oversized HX-360XC to the smaller, lighter HX-240XC without giving up cooling margin.</p>
+            <p>The model also held up against physical testing: the team's benchtop radiator rig measured a steady-state heat rejection of 1,610 W at roughly 298 CFM and ΔT = 18°C, while the model predicted 1,850 W at the same operating point.The 13% difference is most likely from real world fan performance losses that aren't captured in the idealized manufacturer datasheet curves. Since the physical result exceeded the thermal model's average predicted lap heat load of 1,505 W, it confirmed the radiator had adequate margin for race conditions even accounting for that gap.</p>
+        </section>
+
+      <figure class="project-figure">
+            <img src="../assets/images/radiator-test-validation.png" alt="Plot of heat rejected during physical radiator bench testing, showing an initial spike and settling to a steady-state average of 1610 Watts">
+            <figcaption>
+                <strong>Figure 5 — Physical Test Validation</strong>
+                <span>Bench test results used to compare measured radiator heat rejection with the MATLAB model prediction and quantify the approximately 13% difference.</span>
+            </figcaption>
+        </figure>
+
+        <section class="project-section">
+            <h2>What I Learned</h2>
+            <p>The biggest lesson was how easily an extrapolation can quietly outrun its data — the manufacturer curves only covered flow rates up to about 6.8 L/min, so every prediction above that was riding on the shape of a fitted curve rather than a measurement, which is exactly where I'd want physical validation before trusting the number. I also got a much better feel for the tradeoff between a quick point calculation and a full parametric model: the extra time spent building a CFM-and-ΔT surface instead of a single "worst case" wattage number is what actually let us right-size the radiator instead of over-building it again. If I did this again, I'd push to get bench-test data earlier in the design cycle so the 13% real-world gap could inform the radiator selection itself, not just confirm it after the fact.</p>
+        </section>
+        
+
+<div class="project-nav">
+    <a href="project-3.html">← Previous Project</a>
+    <a href="project-2.html">Next Project →</a>
+</div>
+
+</main>
+
+<footer><p>© 2026 Taiju Noma</p></footer>
+
+</body>
+</html>

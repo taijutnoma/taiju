@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HVAC Thermal Simulation | Taiju Noma</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* Scoped fallback styling for in-line figures, in case style.css doesn't already define these */
+  .project-figure { margin: 2rem 0; }
+  .project-figure img { width: 100%; height: auto; display: block; border-radius: 6px; }
+  .project-figure figcaption { margin-top: 0.6rem; font-size: 0.9rem; opacity: 0.75; text-align: center; }
+  .project-figure figcaption strong { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+<nav>
+<a href="../index.html" class="logo">Taiju Noma</a>
+<div class="nav-links">
+<a href="../index.html#home">Home</a>
+<a href="../index.html#resume">Resume</a>
+<a href="../index.html#projects">Projects</a>
+<a href="../index.html#about">About</a>
+<a href="../index.html#contact">Contact</a>
+</div>
+</nav>
+</header>
+
+<main class="project-page">
+
+<a href="../index.html#projects" class="back-link">← Back to Projects</a>
+
+<div class="project-hero">
+    <p class="project-label">MATLAB / Simulink / Thermal Modeling / Controls</p>
+    <h1>HVAC Thermal Simulation</h1>
+    <p class="project-summary">A transient, single-zone MATLAB/Simulink model of an off-grid cabin's air conditioning system, predicting indoor temperature, humidity, and electrical demand over a 24-hour period to support HVAC sizing and control-strategy decisions.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-architecture-diagram.jpg" alt="Simulink block diagram of the HVAC model showing Controller, HVAC Performance, Ventilation, Energy Balance, Moisture Balance, Psychrometrics, and Data Logging blocks">
+        <figcaption><strong>Figure — System Architecture.</strong> The Simulink implementation of the model, showing how weather and schedule inputs flow through the controller, HVAC performance, ventilation, energy and moisture balances, and psychrometrics blocks to produce the indoor state.</figcaption>
+    </figure>
+
+</div>
+
+<div class="project-meta">
+    <div class="project-meta-item"><span class="project-meta-label">ROLE</span><span class="project-meta-value">Individual Project — Model Development, Controls, Analysis</span></div><div class="project-meta-item"><span class="project-meta-label">TOOLS</span><span class="project-meta-value">MATLAB, Simulink</span></div><div class="project-meta-item"><span class="project-meta-label">YEAR</span><span class="project-meta-value">2026</span></div>
+</div>
+
+<section class="project-section">
+    <h2>Project Objective</h2>
+    <p>This project is a transient building and air-conditioning simulation that predicts the thermal and moisture behavior of an off-grid residential cabin over a 24-hour period. The cabin is off-grid by design constraint: there is no utility connection to fall back on, so every watt the AC draws has to come out of a finite solar array and battery bank. That constraint is what shaped the whole model — I wasn't just trying to answer "does the AC keep the cabin cool," I needed to know <em>how much</em> electrical energy that takes, <em>when</em> during the day it's needed, and <em>why</em>, mechanism by mechanism, so that HVAC and solar/battery sizing decisions could be made with real numbers instead of rules of thumb.</p>
+    <p>Specifically, I wanted the simulation to capture and let me interrogate:</p>
+    <ul>
+        <li><strong>Cooling load vs. electrical demand</strong> — these are different quantities, and conflating them leads to under-sizing a solar/battery system even if the AC itself is correctly sized.</li>
+        <li><strong>Where the cooling load actually comes from</strong> — envelope conduction, solar gain, ventilation, and internal loads all behave differently over the day, and lumping them into one number hides which one to attack first if the design needs improving.</li>
+        <li><strong>Sensible and latent behavior separately</strong> — temperature control and moisture control are not the same problem, and an off-grid cabin can be at setpoint temperature while still being uncomfortably humid.</li>
+        <li><strong>How weather actually drives the building</strong> — wind-driven infiltration, solar radiation, and outdoor humidity all change over the day, and a model built on fixed assumptions can't show how the cabin responds to that variability.</li>
+        <li><strong>Realistic controller behavior</strong> — thermostat setback and minimum runtime constraints, so the predicted electrical draw reflects how a real thermostat and compressor would behave rather than an idealized on/off signal.</li>
+    </ul>
+    <p>The simulation runs on a six-minute timestep, solving for indoor temperature and humidity ratio throughout the day. Weather data is read from external input files and interpolated onto the simulation time grid, then combined with the building characteristics, occupancy and equipment schedules, moisture generation, and HVAC performance to solve the coupled energy and moisture balances — built to be detailed enough to inform real equipment sizing, while staying transparent enough to trace exactly which physical mechanism is driving the result at any point in the day.</p>
+</section>
+
+<section class="project-section">
+    <h2>Engineering Approach</h2>
+    <p>My approach was to build the model up from first principles rather than reaching for empirical curve fits or black-box component blocks. Every subsystem is derived from the underlying physics it represents, which meant more work up front but gave me a model where I could always trace a result back to the equation that produced it:</p>
+    <ul>
+        <li><strong>Energy balance:</strong> the indoor temperature state comes directly from a lumped-capacitance energy balance — envelope conductance (UA) driven by wall/roof/floor/window areas and U-values, thermal mass storing and releasing energy, solar gain from radiation and window SHGC, and ventilation heat transfer — integrated rather than approximated.</li>
+        <li><strong>Moisture balance:</strong> humidity ratio is a true dynamic state, derived from mass conservation of water vapor (internal generation, ventilation transfer, AC latent removal), not backed into from a static comfort assumption.</li>
+        <li><strong>Psychrometrics:</strong> vapor pressure, relative humidity, and dew point are computed from fundamental thermodynamic relationships (ideal-gas air density, saturation vapor pressure as a function of temperature) rather than pulled from a lookup table, so the model stays consistent even as pressure and temperature vary.</li>
+        <li><strong>Ventilation:</strong> total air-change rate is built from a baseline infiltration term plus a wind-speed-dependent correction, rather than assumed constant — grounding ventilation in the actual physical driver (pressure difference from wind) instead of a fixed schedule.</li>
+        <li><strong>Controller:</strong> thermostat behavior is built from real hysteresis logic plus setback and minimum-runtime rules, mirroring how an actual residential thermostat and compressor behave, rather than an idealized instantaneous on/off signal.</li>
+    </ul>
+    <p>I also treated the model as something to be built in deliberate increments rather than all at once. I started from a simplified baseline (fixed ventilation, no thermal mass, constant COP, explicit Euler integration) and added one physical mechanism at a time — thermal mass, solar gain, wind-driven ventilation, variable atmospheric pressure, external occupancy/equipment schedules, temperature-dependent COP, fan power, thermostat setback, minimum runtime, and finally 4th-order Runge-Kutta integration — checking after each addition that the model's behavior changed in the direction the physics predicted. That incremental process is what let me be confident that a given result (say, the humidity dip after the AC kicks on) is coming from the mechanism I think it's coming from, rather than an artifact of the numerical solver or an interaction I hadn't anticipated.</p>
+</section>
+
+<section class="project-section">
+    <h2>Model Architecture</h2>
+    <p>The model is organized around a central <code>main</code> script that coordinates every other component. It loads parameters and input data, initializes the indoor temperature and humidity states, builds the simulation time grid, and steps through the transient calculation. At each timestep, <code>main</code> pulls the current weather and internal-load conditions, decides whether the air conditioner should run, calculates HVAC cooling and electrical performance, determines ventilation and solar gains, and evaluates the coupled temperature and moisture balances. The resulting state derivatives are integrated using fourth-order Runge-Kutta, which is a meaningful step up in numerical accuracy from the explicit Euler integration used in the model's first version.</p>
+    <p>Everything else is deliberately modular. The architecture separates into three layers: inputs and parameters (simulation settings, physical constants, air-conditioner specs, weather data, building properties, and operating schedules), physical calculations (heat transfer, moisture transfer, solar gains, ventilation, HVAC operation, and thermostat control), and the numerical solution and results, where the integrated states become the 24-hour indoor temperature and humidity profile. Keeping <code>main</code> as the coordinator while pushing the physics into separate files — <code>weather_script</code>, <code>building_script</code>, <code>loads_script</code>, <code>moisture_script</code>, <code>HVAC_script</code>, and <code>controller_script</code> — means any single subsystem can be modified, debugged, or swapped out without restructuring the rest of the simulation. For example, <code>air_conditioner_parameters</code> isolates the equipment characteristics from the building and weather model entirely, so the same cabin can be re-evaluated against a different HVAC unit just by changing that one file.</p>
+</section>
+
+<section class="project-section">
+    <h2>Control Strategy</h2>
+    <p>The transient controller lives in a <code>controller_step()</code> function inside <code>main</code>, built on top of standard thermostat hysteresis logic. On top of that baseline, the controller adds two behaviors aimed at realism: occupancy-based thermostat setback, which relaxes the control temperature when the cabin is unoccupied or during scheduled sleeping periods to avoid cooling an empty space, and minimum ON/OFF runtime protection, which prevents the compressor from short-cycling in response to noise near the thermostat thresholds. A separate reference implementation of the base hysteresis logic (<code>controller_script</code>) exists as a standalone version of the fundamental control rule, but the full transient simulation runs through the richer <code>controller_step()</code> logic in <code>main</code>.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-ac-operation-electrical-power.png" alt="Plot of AC on/off state and electrical power draw over 24 hours">
+        <figcaption><strong>Figure — AC Operation and Electrical Power.</strong> AC state (on/off) plotted against electrical power draw. Power tracks the cooling requirement, the temperature-dependent COP, and a constant fan-power addition — cooling capacity and electrical demand are shown as two distinct quantities, which matters directly for solar-array and battery sizing on an off-grid system.</figcaption>
+    </figure>
+</section>
+
+<section class="project-section">
+    <h2>Thermal and Moisture Modeling</h2>
+    <p>The cabin is modeled as a well-mixed, single-zone control volume with lumped thermal conductance and capacitance representing the envelope — a step beyond the earlier version of the model, which had effectively no meaningful thermal storage in the building components. That added thermal mass lets the cabin respond gradually to changing outdoor temperature, solar radiation, and internal loads rather than tracking outdoor conditions instantaneously.</p>
+    <p>Ventilation is calculated dynamically from a baseline air-exchange rate plus a wind-speed-dependent component, replacing a fixed-ACH assumption used previously. Air density is computed from atmospheric pressure and indoor temperature using the ideal-gas relationship, and atmospheric pressure itself is imported and interpolated from weather data rather than held constant, which keeps the ventilation and psychrometric calculations internally consistent. Solar gain is estimated from measured solar radiation combined with window area, SHGC, and orientation factors.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-hvac-thermal-loads.png" alt="Plot of envelope heat transfer, ventilation heat transfer, solar gain, internal heat gain, and AC sensible cooling over 24 hours">
+        <figcaption><strong>Figure — HVAC Thermal Loads and Sensible AC Cooling.</strong> The major sensible heat-transfer mechanisms — envelope conduction, ventilation, solar gain, and internal gains — plotted against the AC's sensible cooling output. Solar gain dominates the midday load, which is exactly the kind of mechanism-level breakdown the model was built to expose, rather than just reporting a single cooling number.</figcaption>
+    </figure>
+
+    <p>Humidity ratio is tracked as a second dynamic state alongside temperature, driven by internal moisture generation (occupancy, cooking, equipment), moisture carried in through ventilation, and latent moisture removal by the air conditioner.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-indoor-moisture-sources-removal.png" alt="Plot of ventilation moisture transfer, internal moisture generation, and AC moisture removal over 24 hours">
+        <figcaption><strong>Figure — Indoor Moisture Sources and Removal.</strong> Moisture entering the cabin through ventilation and internal generation, compared against latent moisture removal from the AC. Ventilation can add or remove moisture depending on outdoor conditions, and AC operation only offsets a portion of the total moisture load.</figcaption>
+    </figure>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-wind-speed-air-change-rate.png" alt="Plot of wind speed and resulting total air-change rate over 24 hours">
+        <figcaption><strong>Figure — Wind Speed and Total Air-Change Rate.</strong> Outdoor wind speed plotted against the resulting total ACH. Tying infiltration to wind conditions, rather than treating ventilation as fixed, means increased wind directly raises both the sensible and latent cooling requirement.</figcaption>
+    </figure>
+</section>
+
+<section class="project-section">
+    <h2>Results and Validation</h2>
+    <p>Over the simulated 24-hour period, outdoor temperature swings from roughly 24 °C overnight to about 40.3 °C in mid-afternoon, while the indoor temperature is held far tighter — rising gradually to a peak of about 30.3 °C and never approaching the outdoor extreme. Two things stand out in that response. First, the indoor peak lags the outdoor peak by a few hours, which is the thermal mass doing exactly what it was added to do: storing heat during the day and releasing it gradually rather than letting the cabin track outdoor swings in real time. Second, once the AC engages for the afternoon it holds the cabin close to setpoint despite outdoor temperatures nearly 10 °C above the target — direct evidence that the sensible cooling capacity is adequately sized for the modeled envelope and load.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-indoor-outdoor-temperature.png" alt="Plot of indoor temperature, outdoor temperature, and thermostat setpoint over 24 hours">
+        <figcaption><strong>Figure — Indoor and Outdoor Temperature.</strong> Simulated indoor temperature against the outdoor disturbance and thermostat setpoint. This is the primary check on control performance: the indoor curve should stay near the setpoint even as outdoor conditions swing widely.</figcaption>
+    </figure>
+
+    <p>Breaking the sensible cooling requirement into its individual sources answers one of the core questions the model was built to address: what's actually driving the load. Solar gain is by far the dominant term, peaking around 4,200 W near midday — roughly five times larger than envelope or ventilation heat transfer at their own peaks (both under 900 W). Internal heat gain shows up as two short spikes tied to the occupancy/equipment schedule rather than a steady contribution. Practically, that ranking says the single highest-leverage design change for this cabin would be reducing solar gain (better glazing, shading, orientation) rather than tightening envelope insulation further.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-hvac-thermal-loads.png" alt="Plot of envelope heat transfer, ventilation heat transfer, solar gain, internal heat gain, and AC sensible cooling over 24 hours">
+        <figcaption><strong>Figure — HVAC Thermal Loads and Sensible AC Cooling.</strong> The major sensible heat-transfer mechanisms plotted against the AC's sensible cooling output, showing solar gain as the dominant driver of the midday load.</figcaption>
+    </figure>
+
+    <p>The controller result shows the setback, hysteresis, and minimum-runtime logic behaving as intended: a short cycle around hour 7–8, then a full OFF period, then continuous operation from roughly hour 11 through the end of the simulated day as solar and outdoor temperature loads build. Electrical power tracks that state closely, peaking near 1,300 W during the sustained afternoon run — and importantly, that peak is a combination of compressor power (which itself varies with the temperature-dependent COP) plus a constant fan-power addition, which is why the electrical trace isn't a flat step function even while the AC is continuously ON. This is the number that actually matters for off-grid sizing: the cooling load says how much heat has to leave the cabin, but this plot says how much energy the solar/battery system has to supply to do it.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-ac-operation-electrical-power.png" alt="Plot of AC on/off state and electrical power draw over 24 hours">
+        <figcaption><strong>Figure — AC Operation and Electrical Power.</strong> AC state (on/off) plotted against electrical power draw, showing the brief early cycle, the OFF period, and the sustained afternoon run with power varying under a temperature-dependent COP plus fan load.</figcaption>
+    </figure>
+
+    <p>Indoor relative humidity is not imposed directly — it falls out of the dynamically tracked humidity ratio and temperature — and its behavior is the clearest demonstration that temperature control and moisture control aren't the same problem. RH climbs from an initial ~45% to nearly 68% overnight and into the morning, well before the AC ever turns on, simply from internal moisture generation and ventilation-driven humidity ingress. It's only once the AC engages for its sustained afternoon run that RH drops sharply, falling to roughly 10% by the end of the simulated day as latent cooling removes moisture faster than it's being added. A model that only tracked temperature would have completely missed that multi-hour stretch of elevated humidity with the cabin nominally "unoccupied and fine."</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-indoor-relative-humidity.png" alt="Plot of indoor relative humidity over 24 hours with initial RH reference line">
+        <figcaption><strong>Figure — Indoor Relative Humidity.</strong> Simulated relative humidity across the day, rising well before the AC engages and only dropping once sustained latent cooling begins in the afternoon.</figcaption>
+    </figure>
+
+    <p>The moisture-source breakdown confirms that story at the mechanism level: ventilation moisture transfer is the dominant term for most of the day (and briefly goes negative overnight, meaning the cabin is drying out slightly through ventilation), while AC moisture removal only becomes active — and dominant — once the compressor is running continuously in the afternoon.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-indoor-moisture-sources-removal.png" alt="Plot of ventilation moisture transfer, internal moisture generation, and AC moisture removal over 24 hours">
+        <figcaption><strong>Figure — Indoor Moisture Sources and Removal.</strong> Moisture entering the cabin through ventilation and internal generation, compared against latent moisture removal from the AC.</figcaption>
+    </figure>
+
+    <p>Finally, tying ventilation to wind speed rather than a fixed schedule shows a clear, physically sensible relationship: total ACH rises and falls with wind speed almost in lockstep, peaking near 1.3 ACH around the same midday period when wind speed itself peaks near 5.7 m/s. That's a direct, visible answer to one of the model's core objectives — showing that weather doesn't just act on the cabin through temperature and solar radiation, it also actively changes how much outdoor air is getting in, which in turn changes both the sensible and latent load the AC has to overcome.</p>
+
+    <figure class="project-figure">
+        <img src="../assets/images/hvac-thermal-simulation-wind-speed-air-change-rate.png" alt="Plot of wind speed and resulting total air-change rate over 24 hours">
+        <figcaption><strong>Figure — Wind Speed and Total Air-Change Rate.</strong> Outdoor wind speed plotted against the resulting total ACH, tracking closely together and confirming the wind-driven infiltration model is behaving as designed.</figcaption>
+    </figure>
+
+    <p>Taken together, the results directly answer the questions the objective set out to answer: solar gain is the largest and most controllable sensible load; humidity behaves on its own timeline independent of temperature and can drift for hours before the AC ever engages; wind-driven ventilation is a real, time-varying contributor to both loads rather than a background assumption; and the electrical power trace — not just the AC on/off state — is what an off-grid solar/battery system actually has to be sized against.</p>
+</section>
+
+<section class="project-section">
+    <h2>What I Learned</h2>
+    <ul>
+        <li><strong>Cooling load and electrical demand are genuinely different design questions.</strong> It's easy to size an AC around peak cooling load (W) and stop there — this project made clear that for an off-grid system, the electrical power trace (which depends on COP and fan load, and isn't flat even during continuous operation) is the number that actually constrains the design.</li>
+        <li><strong>Temperature and humidity have to be modeled as coupled but distinct states.</strong> Before I let humidity ratio be its own dynamic state, I was implicitly assuming the cabin's moisture condition tracked temperature control — the RH result showing a multi-hour rise before the AC ever engages was the moment that assumption broke, and it changed how I thought about latent vs. sensible cooling capacity from then on.</li>
+        <li><strong>Building from first principles makes debugging tractable.</strong> When an early version of the model produced a humidity spike that didn't make physical sense, being able to trace it back through an actual mass-balance equation (rather than a black-box block) let me find the error in a sign convention on ventilation moisture transfer in minutes instead of hours.</li>
+        <li><strong>Incremental validation matters more than I expected.</strong> Adding thermal mass, then solar gain, then wind-driven ventilation one at a time — and checking each change moved the results in the physically expected direction — caught several bugs early that would have been much harder to isolate if I'd built the full model at once and then tried to validate it as a whole.</li>
+        <li><strong>Modular architecture pays off during iteration, not just at the end.</strong> Separating equipment characteristics (<code>air_conditioner_parameters</code>) from building physics (<code>building_script</code>) meant I could test how sensitive the results were to AC sizing without touching the building model at all — which is exactly the kind of what-if analysis this project needed to be useful for real sizing decisions.</li>
+        <li><strong>A simplified model still has to be honest about its limits.</strong> Getting physically reasonable-looking curves out of the simulation was not the same as validating it. Documenting explicitly where the model simplifies — solar position, infiltration physics, refrigerant cycle behavior — was as important as the modeling itself, because it's what tells a reader (or future me) how much to trust a given number.</li>
+    </ul>
+</section>
+
+<section class="project-section">
+    <h2>Limitations and Future Improvements</h2>
+    <p>The model rests on a number of simplifying assumptions, and it's worth being direct about where the biggest sources of uncertainty are:</p>
+    <ul>
+        <li><strong>Weather resolution:</strong> source weather data is hourly, interpolated onto the six-minute simulation grid — short-duration fluctuations in wind, solar radiation, or temperature between measurements aren't captured.</li>
+        <li><strong>Solar gain:</strong> estimated from radiation, window area, SHGC, and orientation factors, without a detailed solar-position calculation — no solar altitude/azimuth, incidence angle, shading, or overhangs.</li>
+        <li><strong>Infiltration:</strong> the baseline-plus-wind ACH model is more realistic than a fixed rate, but still simplified relative to a full pressure-network infiltration model that would account for wind direction, stack effect, and building leakage in detail.</li>
+        <li><strong>Thermal mass:</strong> represented with lumped capacitance rather than a multi-node model, so the simulation captures overall thermal inertia but not the individual temperatures of walls, roof, floor, and furnishings.</li>
+        <li><strong>Occupancy and equipment schedules:</strong> assumed rather than measured, so calculated internal loads are only as good as those assumptions.</li>
+        <li><strong>AC performance:</strong> COP varies linearly with outdoor temperature above rated conditions, which is more realistic than a constant COP but still a simplification of a full manufacturer performance map.</li>
+        <li><strong>Refrigerant flow:</strong> approximated from a simplified enthalpy relationship rather than a full vapor-compression cycle model.</li>
+    </ul>
+    <p>Future versions would benefit most from measured cabin data for validation, higher-resolution weather input, a proper solar-position and shading model, a pressure-based infiltration model, a multi-node building thermal model, and manufacturer-specific HVAC performance maps. Even with those simplifications, the current model is a substantial step up from its predecessor — replacing Euler integration with 4th-order Runge-Kutta, adding building thermal mass, solar gain, wind-driven ventilation, variable atmospheric pressure, external occupancy/equipment schedules, temperature-dependent COP, fan power, thermostat setback, and minimum-runtime protection — and it's structured so each of those subsystems can keep improving independently.</p>
+</section>
+
+<div class="project-nav">
+    <a href="project-1.html">← Previous Project</a>
+    <a href="project-3.html">Next Project →</a>
+</div>
+
+</main>
+
+<footer><p>© 2026 Taiju Noma</p></footer>
+
+</body>
+</html>
